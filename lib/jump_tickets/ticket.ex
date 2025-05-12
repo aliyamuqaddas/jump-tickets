@@ -9,5 +9,6 @@ defmodule JumpTickets.Ticket do
     field :intercom_conversations, :string
     field :summary, :string
     field :slack_channel, :string
+    field :done, :boolean, default: false
   end
 end

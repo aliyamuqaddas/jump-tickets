@@ -24,10 +24,25 @@ defmodule JumpTickets.Ticket.DoneNotifier do
     slack_message = "Ticket #{ticket_id} has been marked as Done."
 
     # Post to Slack
-    with {:ok, _} <- post_slack_message(slack_channel, slack_message) do
-      :ok
-    else
-      error -> IO.puts("Failed to notify Slack: #{inspect(error)}")
+    case post_slack_message(slack_channel, slack_message) do
+      {:ok, _} ->
+        :ok
+
+      {:error, :empty_channel_id} ->
+        IO.puts("Failed to notify Slack: The channel ID parsed from #{slack_channel} is empty")
+        {:error, :empty_channel_id}
+
+      {:error, :no_slack_channel} ->
+        IO.puts("Failed to notify Slack: No Slack channel provided for ticket #{ticket_id}")
+        {:error, :no_slack_channel}
+
+      {:error, :invalid_slack_channel_url} ->
+        IO.puts("Failed to notify Slack: Invalid Slack channel URL format: #{slack_channel}")
+        {:error, :invalid_slack_channel_url}
+
+      error ->
+        IO.puts("Failed to notify Slack: #{inspect(error)}")
+        error
     end
 
     # Post to each linked Intercom conversation
@@ -55,7 +70,12 @@ defmodule JumpTickets.Ticket.DoneNotifier do
       %URI{path: path} ->
         parts = String.split(path, "/")
         channel_id = Enum.at(parts, 3)
-        Slack.post_message(channel_id, message)
+
+        if channel_id && String.trim(channel_id) != "" do
+          Slack.post_message(channel_id, message)
+        else
+          {:error, :empty_channel_id}
+        end
 
       _ ->
         {:error, :invalid_slack_channel_url}
